@@ -275,12 +275,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyCurrentLocationRoute(lat: Double, lng: Double) {
         val userPt = LatLngPoint(lat, lng)
-        val localRoute = RouteManager.generateLocalLoop(userPt, 450.0)
+        val localRoute = RouteManager.generateLocalLoop(userPt, 400.0)
         selectedRoute = localRoute
         val lenMeters = RouteManager.calculateTotalLength(selectedRoute.points)
-        binding.tvRouteInfo.text = String.format("Vòng chạy quanh nhà bạn (~%.2f km) • Tự động lặp", lenMeters / 1000.0)
-        loadRouteOnMap(selectedRoute)
-        Toast.makeText(this, "Đã tạo lộ trình chạy quanh vị trí của bạn thành công!", Toast.LENGTH_SHORT).show()
+        binding.tvRouteInfo.text = String.format("Vòng chạy quanh nhà bạn (~%.2f km) • Đang bám đường...", lenMeters / 1000.0)
+        
+        // Yêu cầu bản đồ OSRM tìm đường đi bộ thực tế bám sát các con phố
+        val json = Gson().toJson(localRoute.points)
+        binding.webViewMap.evaluateJavascript("snapToWalkingRoute($json);", null)
     }
 
     private fun startSimulation() {
@@ -317,8 +319,25 @@ class MainActivity : AppCompatActivity() {
 
     inner class AndroidBridge {
         @JavascriptInterface
-        fun onPointAdded(pointsJson: String) {
-            // Callback khi người dùng vẽ điểm trên bản đồ
+        fun onCustomRouteCreated(routeJson: String) {
+            runOnUiThread {
+                try {
+                    val points = RouteManager.parseCustomRoute(routeJson)
+                    if (points.isNotEmpty()) {
+                        selectedRoute = Route(
+                            id = "custom_street_route",
+                            name = "Lộ trình bám sát mặt đường phố",
+                            description = "Đường đi bộ thực tế men theo vỉa hè và ngã tư",
+                            points = points
+                        )
+                        val lenKm = RouteManager.calculateTotalLength(points) / 1000.0
+                        binding.tvRouteInfo.text = String.format("Lộ trình mặt đường: %.2f km (Tự động lặp)", lenKm)
+                        Toast.makeText(this@MainActivity, "Đã khóa lộ trình bám sát mặt đường phố!", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Lỗi phân tích lộ trình: ${e.message}")
+                }
+            }
         }
     }
 }

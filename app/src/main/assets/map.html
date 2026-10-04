@@ -11,18 +11,18 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #121316;
+            background-color: #e5e3df;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         .leaflet-container {
-            background: #121316;
+            background: #e5e3df;
         }
         .runner-icon {
             background-color: #FC5200;
             border: 3px solid #FFFFFF;
             border-radius: 50%;
-            box-shadow: 0 0 15px rgba(252, 82, 0, 0.8), 0 0 30px rgba(252, 82, 0, 0.5);
+            box-shadow: 0 0 12px rgba(252, 82, 0, 0.9), 0 0 24px rgba(252, 82, 0, 0.5);
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
@@ -30,51 +30,133 @@
             70% { box-shadow: 0 0 0 14px rgba(252, 82, 0, 0); }
             100% { box-shadow: 0 0 0 0 rgba(252, 82, 0, 0); }
         }
-        .custom-popup .leaflet-popup-content-wrapper {
-            background: #1e222b;
-            color: #fff;
+        
+        /* Floating Map Controls */
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .map-btn {
+            background: rgba(27, 30, 35, 0.9);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 10px;
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .map-btn.active {
+            background: #FC5200;
+            border-color: #FC5200;
+            color: #fff;
+        }
+        .map-tip {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(20, 22, 26, 0.9);
+            color: #00E676;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+            display: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }
     </style>
 </head>
 <body>
 <div id="map"></div>
 
+<div class="map-controls">
+    <button class="map-btn active" id="btnRoad" onclick="switchLayer('road')">🗺️ Bản đồ Google</button>
+    <button class="map-btn" id="btnSat" onclick="switchLayer('sat')">🛰️ Vệ tinh</button>
+    <button class="map-btn" id="btnCenter" onclick="centerOnRunner()">📍 Về con trỏ</button>
+    <button class="map-btn" id="btnDraw" onclick="toggleDrawingMode()">✏️ Chấm lộ trình</button>
+    <button class="map-btn" id="btnClear" onclick="clearDrawing()" style="display:none; color:#FF5252;">🗑️ Xóa điểm</button>
+</div>
+
+<div class="map-tip" id="mapTip">👉 Chạm vào các ngã tư trên đường để nối lộ trình chạy</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Khởi tạo bản đồ với Dark mode tiles từ CartoDB
-    const map = L.map('map', {
-        zoomControl: false,
-        attributionControl: false
-    }).setView([21.0285, 105.8542], 15);
+    // 1. Google Maps Road (Đầy đủ tên đường, ngõ ngách, tiếng Việt 100%)
+    const googleRoad = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19
-    }).addTo(map);
+    // 2. Google Maps Satellite Hybrid (Ảnh vệ tinh kèm tên đường)
+    const googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    });
+
+    const map = L.map('map', {
+        zoomControl: true,
+        attributionControl: false,
+        layers: [googleRoad]
+    }).setView([21.0285, 105.8542], 16);
+
+    let currentLayer = 'road';
+    function switchLayer(layer) {
+        if (layer === 'road' && currentLayer !== 'road') {
+            map.removeLayer(googleSat);
+            map.addLayer(googleRoad);
+            document.getElementById('btnRoad').classList.add('active');
+            document.getElementById('btnSat').classList.remove('active');
+            currentLayer = 'road';
+        } else if (layer === 'sat' && currentLayer !== 'sat') {
+            map.removeLayer(googleRoad);
+            map.addLayer(googleSat);
+            document.getElementById('btnSat').classList.add('active');
+            document.getElementById('btnRoad').classList.remove('active');
+            currentLayer = 'sat';
+        }
+    }
 
     let routePolyline = null;
     let runnerMarker = null;
-    let customWaypoints = [];
+    let lastPosition = null;
+    let drawnWaypoints = [];
     let isDrawingMode = false;
+    let drawnMarkers = [];
 
     const runnerIcon = L.divIcon({
         className: 'runner-icon',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
     });
 
-    // Cập nhật vị trí hiện tại của runner
     function updateRunnerPosition(lat, lng) {
+        lastPosition = [lat, lng];
         if (!runnerMarker) {
             runnerMarker = L.marker([lat, lng], { icon: runnerIcon }).addTo(map);
         } else {
             runnerMarker.setLatLng([lat, lng]);
         }
-        map.panTo([lat, lng], { animate: true, duration: 0.5 });
     }
 
-    // Tải và hiển thị toàn bộ lộ trình
+    function centerOnRunner() {
+        if (lastPosition) {
+            map.setView(lastPosition, 17, { animate: true });
+        }
+    }
+
     function displayRoute(waypointsJson) {
         try {
             const waypoints = typeof waypointsJson === 'string' ? JSON.parse(waypointsJson) : waypointsJson;
@@ -85,47 +167,106 @@
             }
 
             routePolyline = L.polyline(latLngs, {
-                color: '#00E676',
+                color: '#FC5200',
                 weight: 5,
-                opacity: 0.85,
-                dashArray: '2, 6'
+                opacity: 0.9,
+                lineJoin: 'round'
             }).addTo(map);
 
             if (latLngs.length > 0) {
-                map.fitBounds(routePolyline.getBounds(), { padding: [30, 30] });
+                map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
                 updateRunnerPosition(latLngs[0][0], latLngs[0][1]);
             }
         } catch (e) {
-            console.error("Error displayRoute:", e);
+            console.error("displayRoute error:", e);
         }
     }
 
-    // Chế độ cho người dùng chạm vào bản đồ để tự chấm điểm vẽ lộ trình
-    function setDrawingMode(enabled) {
-        isDrawingMode = enabled;
-        if (enabled) {
-            customWaypoints = [];
-            if (routePolyline) map.removeLayer(routePolyline);
+    function toggleDrawingMode() {
+        isDrawingMode = !isDrawingMode;
+        const btn = document.getElementById('btnDraw');
+        const clearBtn = document.getElementById('btnClear');
+        const tip = document.getElementById('mapTip');
+
+        if (isDrawingMode) {
+            btn.classList.add('active');
+            btn.innerText = '✅ Xong vẽ';
+            clearBtn.style.display = 'flex';
+            tip.style.display = 'block';
+            clearDrawing();
+        } else {
+            btn.classList.remove('active');
+            btn.innerText = '✏️ Chấm lộ trình';
+            clearBtn.style.display = 'none';
+            tip.style.display = 'none';
+
+            if (drawnWaypoints.length >= 2) {
+                snapToWalkingRoute(drawnWaypoints);
+            }
         }
+    }
+
+    function clearDrawing() {
+        drawnWaypoints = [];
+        drawnMarkers.forEach(m => map.removeLayer(m));
+        drawnMarkers = [];
+        if (routePolyline) map.removeLayer(routePolyline);
     }
 
     map.on('click', function(e) {
         if (!isDrawingMode) return;
-        const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
-        customWaypoints.push(pt);
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        drawnWaypoints.push({ lat, lng });
 
-        const latLngs = customWaypoints.map(p => [p.lat, p.lng]);
-        if (routePolyline) map.removeLayer(routePolyline);
-        routePolyline = L.polyline(latLngs, {
-            color: '#FC5200',
-            weight: 4,
-            opacity: 0.9
+        const m = L.circleMarker([lat, lng], {
+            radius: 5,
+            color: '#00E676',
+            fillColor: '#FFFFFF',
+            fillOpacity: 1
         }).addTo(map);
+        drawnMarkers.push(m);
 
-        if (window.AndroidBridge && window.AndroidBridge.onPointAdded) {
-            window.AndroidBridge.onPointAdded(JSON.stringify(customWaypoints));
+        if (drawnWaypoints.length > 1) {
+            const latLngs = drawnWaypoints.map(p => [p.lat, p.lng]);
+            if (routePolyline) map.removeLayer(routePolyline);
+            routePolyline = L.polyline(latLngs, { color: '#00E676', weight: 4, dashArray: '4, 6' }).addTo(map);
         }
     });
+
+    // Tự động tìm đường đi bộ thực tế bám sát mặt đường qua OSRM
+    function snapToWalkingRoute(points) {
+        if (points.length < 2) return;
+        const coordStr = points.map(p => p.lng + ',' + p.lat).join(';');
+        const url = `https://router.project-osrm.org/route/v1/foot/${coordStr}?overview=full&geometries=geojson`;
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    const coords = data.routes[0].geometry.coordinates;
+                    // Chuyển đổi [lng, lat] -> LatLngPoint {lat, lng}
+                    const snappedPoints = coords.map(c => ({ lat: c[1], lng: c[0] }));
+                    displayRoute(snappedPoints);
+                    if (window.AndroidBridge && window.AndroidBridge.onCustomRouteCreated) {
+                        window.AndroidBridge.onCustomRouteCreated(JSON.stringify(snappedPoints));
+                    }
+                } else {
+                    fallbackRoute(points);
+                }
+            })
+            .catch(err => {
+                console.error("OSRM error, using straight lines:", err);
+                fallbackRoute(points);
+            });
+    }
+
+    function fallbackRoute(points) {
+        displayRoute(points);
+        if (window.AndroidBridge && window.AndroidBridge.onCustomRouteCreated) {
+            window.AndroidBridge.onCustomRouteCreated(JSON.stringify(points));
+        }
+    }
 </script>
 </body>
 </html>
