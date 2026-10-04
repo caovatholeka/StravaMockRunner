@@ -193,6 +193,7 @@
             btn.innerText = '✅ Xong vẽ';
             clearBtn.style.display = 'flex';
             tip.style.display = 'block';
+            tip.innerText = '👉 Chạm vào 3-4 ngã ba/ngã tư trên đường để nối lộ trình chạy';
             clearDrawing();
         } else {
             btn.classList.remove('active');
@@ -201,7 +202,15 @@
             tip.style.display = 'none';
 
             if (drawnWaypoints.length >= 2) {
-                snapToWalkingRoute(drawnWaypoints);
+                // Tự động khép kín vòng chạy nếu điểm cuối cách điểm đầu > 40m
+                let loop = [...drawnWaypoints];
+                const pFirst = loop[0];
+                const pLast = loop[loop.length - 1];
+                const dist = Math.hypot(pFirst.lat - pLast.lat, pFirst.lng - pLast.lng);
+                if (dist > 0.0004) {
+                    loop.push(pFirst); // Quay về điểm xuất phát
+                }
+                snapToWalkingRoute(loop);
             }
         }
     }
@@ -219,13 +228,20 @@
         const lng = e.latlng.lng;
         drawnWaypoints.push({ lat, lng });
 
-        const m = L.circleMarker([lat, lng], {
-            radius: 5,
-            color: '#00E676',
-            fillColor: '#FFFFFF',
-            fillOpacity: 1
-        }).addTo(map);
+        const pointIndex = drawnWaypoints.length;
+        // Tạo marker có số thứ tự 1, 2, 3...
+        const numberIcon = L.divIcon({
+            className: 'number-icon',
+            html: `<div style="background:#FC5200;color:#fff;border:2px solid #fff;border-radius:50%;width:22px;height:22px;line-height:18px;text-align:center;font-size:11px;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.5);">${pointIndex}</div>`,
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+        });
+
+        const m = L.marker([lat, lng], { icon: numberIcon }).addTo(map);
         drawnMarkers.push(m);
+
+        const tip = document.getElementById('mapTip');
+        tip.innerText = `Đã chọn ${pointIndex} điểm. Bấm nút "✅ Xong vẽ" để tự động nắn ôm mặt đường!`;
 
         if (drawnWaypoints.length > 1) {
             const latLngs = drawnWaypoints.map(p => [p.lat, p.lng]);
@@ -237,12 +253,17 @@
     // Tự động tìm đường đi bộ thực tế bám sát mặt đường qua OSRM
     function snapToWalkingRoute(points) {
         if (points.length < 2) return;
+        const tip = document.getElementById('mapTip');
+        tip.style.display = 'block';
+        tip.innerText = '⏳ Đang tối ưu đường chạy bám sát lòng đường...';
+
         const coordStr = points.map(p => p.lng + ',' + p.lat).join(';');
         const url = `https://router.project-osrm.org/route/v1/foot/${coordStr}?overview=full&geometries=geojson`;
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
+                tip.style.display = 'none';
                 if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
                     const coords = data.routes[0].geometry.coordinates;
                     // Chuyển đổi [lng, lat] -> LatLngPoint {lat, lng}
@@ -256,6 +277,7 @@
                 }
             })
             .catch(err => {
+                tip.style.display = 'none';
                 console.error("OSRM error, using straight lines:", err);
                 fallbackRoute(points);
             });

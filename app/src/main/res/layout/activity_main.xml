@@ -93,8 +93,20 @@
                         android:layout_height="44dp"
                         android:layout_marginTop="8dp"
                         android:backgroundTint="#2C323F"
-                        android:text="📍 Tạo vòng chạy quanh vị trí hiện tại"
+                        android:text="📍 Về vị trí hiện tại của tôi"
                         android:textColor="@color/accent_neon_green"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="10dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnPickOnMap"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="6dp"
+                        android:backgroundTint="#FC5200"
+                        android:text="✏️ Chạm bản đồ chọn các ngã tư trên phố"
+                        android:textColor="@color/white"
                         android:textSize="13sp"
                         android:textStyle="bold"
                         app:cornerRadius="10dp" />

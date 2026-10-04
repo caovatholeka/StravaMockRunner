@@ -42,9 +42,9 @@ jobs:
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3
-          name: "Strava Mock Runner v1.3"
-          body: "Bản cập nhật v1.3: Tích hợp bản đồ Google Maps sắc nét tiếng Việt, chế độ vệ tinh, tự động bám sát mặt đường phố thật và tính năng chạm tay chấm điểm lộ trình."
+          tag_name: v1.4
+          name: "Strava Mock Runner v1.4"
+          body: "Bản cập nhật v1.4: Nút chọn đường chạy trực tiếp trên bản đồ Google Maps, tự động nắn ôm sát từng ngã rẽ và vỉa hè, không bao giờ chạy xuyên qua nhà."
           files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

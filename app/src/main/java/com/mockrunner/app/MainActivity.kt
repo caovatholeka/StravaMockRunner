@@ -242,6 +242,14 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Hãy dừng bài chạy hiện tại trước khi đổi lộ trình", Toast.LENGTH_SHORT).show()
             }
         }
+
+        binding.btnPickOnMap.setOnClickListener {
+            if (!isRunning) {
+                binding.webViewMap.evaluateJavascript("toggleDrawingMode();", null)
+            } else {
+                Toast.makeText(this, "Hãy dừng bài chạy hiện tại trước khi vẽ lộ trình", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")
