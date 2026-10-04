@@ -91,6 +91,15 @@ object RouteManager {
         )
     )
 
+    fun parseCustomRoute(json: String): List<LatLngPoint> {
+        return try {
+            val type = object : TypeToken<List<LatLngPoint>>() {}.type
+            Gson().fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     fun calculateTotalLength(points: List<LatLngPoint>): Double {
         if (points.size < 2) return 0.0
         var total = 0.0
