@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Runner Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html, #map {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #121316;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .leaflet-container {
+            background: #121316;
+        }
+        .runner-icon {
+            background-color: #FC5200;
+            border: 3px solid #FFFFFF;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(252, 82, 0, 0.8), 0 0 30px rgba(252, 82, 0, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(252, 82, 0, 0.7); }
+            70% { box-shadow: 0 0 0 14px rgba(252, 82, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(252, 82, 0, 0); }
+        }
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: #1e222b;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Khởi tạo bản đồ với Dark mode tiles từ CartoDB
+    const map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false
+    }).setView([21.0285, 105.8542], 15);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+    }).addTo(map);
+
+    let routePolyline = null;
+    let runnerMarker = null;
+    let customWaypoints = [];
+    let isDrawingMode = false;
+
+    const runnerIcon = L.divIcon({
+        className: 'runner-icon',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+
+    // Cập nhật vị trí hiện tại của runner
+    function updateRunnerPosition(lat, lng) {
+        if (!runnerMarker) {
+            runnerMarker = L.marker([lat, lng], { icon: runnerIcon }).addTo(map);
+        } else {
+            runnerMarker.setLatLng([lat, lng]);
+        }
+        map.panTo([lat, lng], { animate: true, duration: 0.5 });
+    }
+
+    // Tải và hiển thị toàn bộ lộ trình
+    function displayRoute(waypointsJson) {
+        try {
+            const waypoints = typeof waypointsJson === 'string' ? JSON.parse(waypointsJson) : waypointsJson;
+            const latLngs = waypoints.map(pt => [pt.lat, pt.lng]);
+
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+            }
+
+            routePolyline = L.polyline(latLngs, {
+                color: '#00E676',
+                weight: 5,
+                opacity: 0.85,
+                dashArray: '2, 6'
+            }).addTo(map);
+
+            if (latLngs.length > 0) {
+                map.fitBounds(routePolyline.getBounds(), { padding: [30, 30] });
+                updateRunnerPosition(latLngs[0][0], latLngs[0][1]);
+            }
+        } catch (e) {
+            console.error("Error displayRoute:", e);
+        }
+    }
+
+    // Chế độ cho người dùng chạm vào bản đồ để tự chấm điểm vẽ lộ trình
+    function setDrawingMode(enabled) {
+        isDrawingMode = enabled;
+        if (enabled) {
+            customWaypoints = [];
+            if (routePolyline) map.removeLayer(routePolyline);
+        }
+    }
+
+    map.on('click', function(e) {
+        if (!isDrawingMode) return;
+        const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
+        customWaypoints.push(pt);
+
+        const latLngs = customWaypoints.map(p => [p.lat, p.lng]);
+        if (routePolyline) map.removeLayer(routePolyline);
+        routePolyline = L.polyline(latLngs, {
+            color: '#FC5200',
+            weight: 4,
+            opacity: 0.9
+        }).addTo(map);
+
+        if (window.AndroidBridge && window.AndroidBridge.onPointAdded) {
+            window.AndroidBridge.onPointAdded(JSON.stringify(customWaypoints));
+        }
+    });
+</script>
+</body>
+</html>

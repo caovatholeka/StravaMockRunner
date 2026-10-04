@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Strava Mock Runner</string>
+    <string name="status_stopped">Đang dừng</string>
+    <string name="status_running">Đang chạy</string>
+    <string name="status_paused">Tạm dừng</string>
+    <string name="btn_start">BẮT ĐẦU CHẠY</string>
+    <string name="btn_pause">TẠM DỪNG</string>
+    <string name="btn_resume">TIẾP TỤC</string>
+    <string name="btn_stop">KẾT THÚC</string>
+    <string name="speed_label">Vận tốc (km/h)</string>
+    <string name="distance_label">Quãng đường (km)</string>
+    <string name="time_label">Thời gian</string>
+    <string name="route_label">Lộ trình chạy</string>
+    <string name="notification_channel_name">Mock Runner Service</string>
+    <string name="notification_channel_desc">Duy trì mô phỏng GPS chạy nền cho Strava</string>
+</resources>
