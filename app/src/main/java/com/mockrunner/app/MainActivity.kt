@@ -32,20 +32,36 @@ class MainActivity : AppCompatActivity() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == MockLocationService.ACTION_STATE_UPDATE) {
-                val speed = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_SPEED, 0.0)
-                val dist = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_DISTANCE, 0.0)
-                val elapsed = intent.getLongExtra(MockLocationService.EXTRA_STATE_ELAPSED, 0L)
-                val lat = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_LAT, 0.0)
-                val lng = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_LNG, 0.0)
-                isRunning = intent.getBooleanExtra(MockLocationService.EXTRA_STATE_RUNNING, false)
-                isPaused = intent.getBooleanExtra(MockLocationService.EXTRA_STATE_PAUSED, false)
+            when (intent?.action) {
+                MockLocationService.ACTION_STATE_UPDATE -> {
+                    val speed = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_SPEED, 0.0)
+                    val dist = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_DISTANCE, 0.0)
+                    val elapsed = intent.getLongExtra(MockLocationService.EXTRA_STATE_ELAPSED, 0L)
+                    val lat = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_LAT, 0.0)
+                    val lng = intent.getDoubleExtra(MockLocationService.EXTRA_STATE_LNG, 0.0)
+                    isRunning = intent.getBooleanExtra(MockLocationService.EXTRA_STATE_RUNNING, false)
+                    isPaused = intent.getBooleanExtra(MockLocationService.EXTRA_STATE_PAUSED, false)
 
-                updateMetricsUI(speed, dist, elapsed)
-                updateMapMarker(lat, lng)
-                updateControlButtonsState()
+                    updateMetricsUI(speed, dist, elapsed)
+                    updateMapMarker(lat, lng)
+                    updateControlButtonsState()
+                }
+                MockLocationService.ACTION_MOCK_PERMISSION_ERROR -> {
+                    showMockPermissionDialog()
+                }
             }
         }
+    }
+
+    private fun showMockPermissionDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("⚠️ Chưa cấp quyền Vị trí giả lập")
+            .setMessage("Điện thoại chưa cho phép ứng dụng can thiệp GPS!\n\nVui lòng vào: Cài đặt cho nhà phát triển ➔ 'Chọn ứng dụng vị trí giả' ➔ Chọn 'Strava Mock Runner' để kích hoạt.")
+            .setPositiveButton("Mở Cài Đặt Ngay") { _, _ ->
+                openDeveloperSettings()
+            }
+            .setNegativeButton("Đóng", null)
+            .show()
     }
 
     private val permissionLauncher = registerForActivityResult(
@@ -70,7 +86,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val filter = IntentFilter(MockLocationService.ACTION_STATE_UPDATE)
+        val filter = IntentFilter().apply {
+            addAction(MockLocationService.ACTION_STATE_UPDATE)
+            addAction(MockLocationService.ACTION_MOCK_PERMISSION_ERROR)
+        }
         ContextCompat.registerReceiver(
             this,
             receiver,

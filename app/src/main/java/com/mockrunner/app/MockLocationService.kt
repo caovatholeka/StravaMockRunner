@@ -34,6 +34,7 @@ class MockLocationService : Service() {
 
         // Broadcast actions
         const val ACTION_STATE_UPDATE = "com.mockrunner.app.STATE_UPDATE"
+        const val ACTION_MOCK_PERMISSION_ERROR = "com.mockrunner.app.MOCK_PERMISSION_ERROR"
         const val EXTRA_STATE_SPEED = "EXTRA_STATE_SPEED"
         const val EXTRA_STATE_DISTANCE = "EXTRA_STATE_DISTANCE"
         const val EXTRA_STATE_ELAPSED = "EXTRA_STATE_ELAPSED"
@@ -105,30 +106,43 @@ class MockLocationService : Service() {
 
     @SuppressLint("MissingPermission")
     private fun setupMockProviders() {
-        try {
-            // Thiết lập Google Play Services Mock Mode
-            fusedLocationClient.setMockMode(true).addOnFailureListener { e ->
-                Log.e(TAG, "Lỗi bật mock mode Google Fused Location: ${e.message}")
+        fusedLocationClient.setMockMode(true).addOnFailureListener { e ->
+            Log.e(TAG, "Lỗi bật mock mode Google Fused Location: ${e.message}")
+            if (e is SecurityException) {
+                broadcastPermissionError()
             }
+        }
 
-            // Thiết lập Android System GPS Test Provider
+        val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+        for (provider in providers) {
             try {
-                locationManager.removeTestProvider(LocationManager.GPS_PROVIDER)
+                locationManager.removeTestProvider(provider)
             } catch (_: Exception) {}
 
-            @Suppress("DEPRECATION")
-            locationManager.addTestProvider(
-                LocationManager.GPS_PROVIDER,
-                false, false, false, false,
-                true, true, true,
-                1, // Power requirement: LOW
-                1  // Accuracy: FINE
-            )
-            locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
-            Log.d(TAG, "Đã khởi tạo xong GPS Mock Provider thành công")
-        } catch (e: Exception) {
-            Log.e(TAG, "Không thể khởi tạo Mock Provider: ${e.message}")
+            try {
+                @Suppress("DEPRECATION")
+                locationManager.addTestProvider(
+                    provider,
+                    false, false, false, false,
+                    true, true, true,
+                    1, 1
+                )
+                locationManager.setTestProviderEnabled(provider, true)
+                Log.d(TAG, "Đã khởi tạo xong $provider Mock Provider")
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Không có quyền mock $provider: ${e.message}")
+                broadcastPermissionError()
+            } catch (e: Exception) {
+                Log.e(TAG, "Lỗi khởi tạo $provider: ${e.message}")
+            }
         }
+    }
+
+    private fun broadcastPermissionError() {
+        val intent = Intent(ACTION_MOCK_PERMISSION_ERROR).apply {
+            setPackage(packageName)
+        }
+        sendBroadcast(intent)
     }
 
     private fun startMocking() {
@@ -215,28 +229,42 @@ class MockLocationService : Service() {
 
     @SuppressLint("MissingPermission")
     private fun pushMockLocation(point: LatLngPoint, speedMps: Float, bearing: Float) {
-        val mockLocation = Location(LocationManager.GPS_PROVIDER).apply {
+        val now = System.currentTimeMillis()
+        val nowNanos = SystemClock.elapsedRealtimeNanos()
+
+        val mockGps = Location(LocationManager.GPS_PROVIDER).apply {
             latitude = point.lat
             longitude = point.lng
-            altitude = 12.5 + (Random.nextDouble() - 0.5) * 0.4 // Độ cao thực tế
+            altitude = 12.5 + (Random.nextDouble() - 0.5) * 0.4
             speed = speedMps
             this.bearing = bearing
-            accuracy = 2.5f + Random.nextFloat() * 1.2f // Độ chính xác cực nét (2.5 - 3.7m)
-            time = System.currentTimeMillis()
-            elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+            accuracy = 2.5f + Random.nextFloat() * 1.0f
+            time = now
+            elapsedRealtimeNanos = nowNanos
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 bearingAccuracyDegrees = 1.0f
                 speedAccuracyMetersPerSecond = 0.15f
-                verticalAccuracyMeters = 1.2f
+                verticalAccuracyMeters = 1.0f
             }
         }
 
+        val mockNet = Location(mockGps).apply {
+            provider = LocationManager.NETWORK_PROVIDER
+            accuracy = 4.0f
+        }
+
+        val mockFused = Location(mockGps).apply {
+            provider = "fused"
+        }
+
         try {
-            // Đẩy vào Google Play Services Fused Location
-            fusedLocationClient.setMockLocation(mockLocation)
-            // Đẩy vào Android Native GPS Provider
-            locationManager.setTestProviderLocation(LocationManager.GPS_PROVIDER, mockLocation)
+            // Đẩy vào cả 3 tầng định vị: GPS phần cứng, Network wifi và Fused Location
+            locationManager.setTestProviderLocation(LocationManager.GPS_PROVIDER, mockGps)
+            locationManager.setTestProviderLocation(LocationManager.NETWORK_PROVIDER, mockNet)
+            fusedLocationClient.setMockLocation(mockFused)
+        } catch (e: SecurityException) {
+            broadcastPermissionError()
         } catch (e: Exception) {
             Log.e(TAG, "Lỗi khi nạp mock location: ${e.message}")
         }
@@ -325,6 +353,7 @@ class MockLocationService : Service() {
         try {
             fusedLocationClient.setMockMode(false)
             locationManager.removeTestProvider(LocationManager.GPS_PROVIDER)
+            locationManager.removeTestProvider(LocationManager.NETWORK_PROVIDER)
         } catch (_: Exception) {}
         stopForeground(STOP_FOREGROUND_REMOVE)
     }

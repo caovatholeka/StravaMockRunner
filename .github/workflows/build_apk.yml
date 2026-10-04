@@ -42,9 +42,9 @@ jobs:
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1
-          name: "Strava Mock Runner v1.1"
-          body: "Bản cập nhật v1.1: Bổ sung tính năng tạo lộ trình chạy quanh vị trí hiện tại của bạn."
+          tag_name: v1.2
+          name: "Strava Mock Runner v1.2"
+          body: "Bản cập nhật v1.2: Hỗ trợ fake đồng bộ cả 3 tầng (GPS phần cứng, Network Wi-Fi và Google Fused Location), tự động cảnh báo nếu chưa chọn app trong Cài đặt nhà phát triển."
           files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
