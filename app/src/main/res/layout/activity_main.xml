@@ -86,6 +86,18 @@
                         android:text="Tổng chiều dài: 1.7 km"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnUseCurrentLocation"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="8dp"
+                        android:backgroundTint="#2C323F"
+                        android:text="📍 Tạo vòng chạy quanh vị trí hiện tại"
+                        android:textColor="@color/accent_neon_green"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="10dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 

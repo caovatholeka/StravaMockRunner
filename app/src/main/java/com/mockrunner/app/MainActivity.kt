@@ -18,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.gson.Gson
 import com.mockrunner.app.databinding.ActivityMainBinding
 
@@ -213,6 +215,53 @@ class MainActivity : AppCompatActivity() {
         binding.btnOpenDevSettings.setOnClickListener {
             openDeveloperSettings()
         }
+
+        binding.btnUseCurrentLocation.setOnClickListener {
+            if (!isRunning) {
+                createRouteFromCurrentLocation()
+            } else {
+                Toast.makeText(this, "Hãy dừng bài chạy hiện tại trước khi đổi lộ trình", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun createRouteFromCurrentLocation() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Hãy cấp quyền vị trí để lấy tọa độ hiện tại", Toast.LENGTH_SHORT).show()
+            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+            return
+        }
+
+        Toast.makeText(this, "Đang lấy vị trí GPS của bạn...", Toast.LENGTH_SHORT).show()
+        val fusedClient = LocationServices.getFusedLocationProviderClient(this)
+        fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { loc ->
+                if (loc != null) {
+                    applyCurrentLocationRoute(loc.latitude, loc.longitude)
+                } else {
+                    fusedClient.lastLocation.addOnSuccessListener { lastLoc ->
+                        if (lastLoc != null) {
+                            applyCurrentLocationRoute(lastLoc.latitude, lastLoc.longitude)
+                        } else {
+                            Toast.makeText(this, "Không lấy được vị trí GPS. Hãy kiểm tra bật Định vị trên máy", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Lỗi lấy GPS: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun applyCurrentLocationRoute(lat: Double, lng: Double) {
+        val userPt = LatLngPoint(lat, lng)
+        val localRoute = RouteManager.generateLocalLoop(userPt, 450.0)
+        selectedRoute = localRoute
+        val lenMeters = RouteManager.calculateTotalLength(selectedRoute.points)
+        binding.tvRouteInfo.text = String.format("Vòng chạy quanh nhà bạn (~%.2f km) • Tự động lặp", lenMeters / 1000.0)
+        loadRouteOnMap(selectedRoute)
+        Toast.makeText(this, "Đã tạo lộ trình chạy quanh vị trí của bạn thành công!", Toast.LENGTH_SHORT).show()
     }
 
     private fun startSimulation() {

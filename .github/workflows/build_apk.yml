@@ -42,9 +42,9 @@ jobs:
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0
-          name: "Strava Mock Runner v1.0"
-          body: "Tải trực tiếp file app-debug.apk bên dưới về điện thoại Android để cài đặt."
+          tag_name: v1.1
+          name: "Strava Mock Runner v1.1"
+          body: "Bản cập nhật v1.1: Bổ sung tính năng tạo lộ trình chạy quanh vị trí hiện tại của bạn."
           files: app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
