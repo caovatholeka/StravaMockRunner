@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.location.Location
 import android.location.LocationManager
-import android.location.provider.ProviderProperties
 import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -117,29 +116,14 @@ class MockLocationService : Service() {
                 locationManager.removeTestProvider(LocationManager.GPS_PROVIDER)
             } catch (_: Exception) {}
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                locationManager.addTestProvider(
-                    LocationManager.GPS_PROVIDER,
-                    false, false, false, false,
-                    true, true, true,
-                    ProviderProperties.POWER_USAGE_LOW,
-                    ProviderProperties.ACCURACY_FINE
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                locationManager.addTestProvider(
-                    LocationManager.GPS_PROVIDER,
-                    "requiresNetwork" == "",
-                    "requiresSatellite" == "",
-                    "requiresCell" == "",
-                    "hasMonetaryCost" == "",
-                    "supportsAltitude" == "",
-                    "supportsSpeed" == "",
-                    "supportsBearing" == "",
-                    1, // Power requirement: LOW
-                    1  // Accuracy: FINE
-                )
-            }
+            @Suppress("DEPRECATION")
+            locationManager.addTestProvider(
+                LocationManager.GPS_PROVIDER,
+                false, false, false, false,
+                true, true, true,
+                1, // Power requirement: LOW
+                1  // Accuracy: FINE
+            )
             locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
             Log.d(TAG, "Đã khởi tạo xong GPS Mock Provider thành công")
         } catch (e: Exception) {
